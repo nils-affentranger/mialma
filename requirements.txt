@@ -1,0 +1,9 @@
+fastapi
+pydantic-settings
+pydantic[email]>=2.0
+sqlalchemy[asyncio]>=2.0
+aiosqlite
+alembic
+uvicorn
+python-multipart
+httpx
