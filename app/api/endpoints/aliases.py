@@ -37,7 +37,6 @@ async def create_alias(
             address=address,
             local_part=local_part,
             domain=domain,
-            is_internal=alias_in.is_internal,
             destinations=",".join(alias_in.destinations)
         )
         db.add(db_alias)
@@ -46,7 +45,6 @@ async def create_alias(
 
         return Alias(
             local_part=db_alias.local_part,
-            is_internal=db_alias.is_internal,
             destinations=db_alias.destinations.split(",") if db_alias.destinations else [],
             address=db_alias.address,
             domain_name=db_alias.domain
@@ -73,7 +71,6 @@ async def list_aliases(
     return [
         Alias(
             local_part=a.local_part,
-            is_internal=a.is_internal,
             destinations=a.destinations.split(",") if a.destinations else [],
             address=a.address,
             domain_name=a.domain
@@ -99,7 +96,6 @@ async def get_alias(
         
     return Alias(
         local_part=db_alias.local_part,
-        is_internal=db_alias.is_internal,
         destinations=db_alias.destinations.split(",") if db_alias.destinations else [],
         address=db_alias.address,
         domain_name=db_alias.domain
@@ -137,15 +133,12 @@ async def update_alias(
 
         if alias_in.destinations is not None:
             db_alias.destinations = ",".join(alias_in.destinations)
-        if alias_in.is_internal is not None:
-            db_alias.is_internal = alias_in.is_internal
 
         await db.commit()
         await db.refresh(db_alias)
 
         return Alias(
             local_part=db_alias.local_part,
-            is_internal=db_alias.is_internal,
             destinations=db_alias.destinations.split(",") if db_alias.destinations else [],
             address=db_alias.address,
             domain_name=db_alias.domain

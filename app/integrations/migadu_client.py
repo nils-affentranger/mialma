@@ -26,12 +26,11 @@ class MigaduClient:
             response.raise_for_status()
             return response.json().get("address_aliases", [])
 
-    async def create_alias(self, domain: str, local_part: str, destinations: List[str], is_internal: bool = False) -> Dict[str, Any]:
+    async def create_alias(self, domain: str, local_part: str, destinations: List[str]) -> Dict[str, Any]:
         async with httpx.AsyncClient() as client:
             data = {
                 "local_part": local_part,
                 "destinations": ",".join(destinations),
-                "is_internal": str(is_internal).lower()
             }
             response = await client.post(
                 f"{self.base_url}/domains/{domain}/aliases",
@@ -41,13 +40,11 @@ class MigaduClient:
             response.raise_for_status()
             return response.json()
 
-    async def update_alias(self, domain: str, local_part: str, destinations: List[str] = None, is_internal: bool = None, new_local_part: str = None) -> Dict[str, Any]:
+    async def update_alias(self, domain: str, local_part: str, destinations: List[str] = None, new_local_part: str = None) -> Dict[str, Any]:
         async with httpx.AsyncClient() as client:
             data = {}
             if destinations is not None:
                 data["destinations"] = ",".join(destinations)
-            if is_internal is not None:
-                data["is_internal"] = str(is_internal).lower()
             if new_local_part is not None:
                 data["local_part"] = new_local_part
             

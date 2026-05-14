@@ -56,14 +56,12 @@ async def sync_migadu_data(db: AsyncSession):
             if address in db_aliases:
                 db_alias = db_aliases[address]
                 db_alias.local_part = a_data["local_part"]
-                db_alias.is_internal = a_data.get("is_internal", False)
                 db_alias.destinations = dest_str
             else:
                 db_alias = Alias(
                     address=address,
                     local_part=a_data["local_part"],
                     domain=domain_name,
-                    is_internal=a_data.get("is_internal", False),
                     destinations=dest_str
                 )
                 db.add(db_alias)
@@ -114,16 +112,11 @@ async def get_alias_diff(db: AsyncSession) -> Dict[str, Any]:
             
             if address not in migadu_aliases_map:
                 # Check if this is an update of an existing alias (local_part changed)
-                # Heuristic: if there's a Migadu alias with the same destinations and is_internal, 
-                # AND that Migadu alias address is NOT in db_alias_addresses.
-                # Actually, this is hard because multiple aliases could have same destinations.
-                # Let's try to find if any remote alias is NOT in db_alias_addresses.
                 diff["to_create"].append({
                     "address": address,
                     "domain": domain_name,
                     "local_part": db_alias.local_part,
                     "destinations": local_destinations,
-                    "is_internal": db_alias.is_internal,
                     "staged": staged_map.get(address) == SyncActionKind.CREATE
                 })
             else:
@@ -144,18 +137,13 @@ async def get_alias_diff(db: AsyncSession) -> Dict[str, Any]:
                     remote_destinations = [remote_destinations]
                 remote_destinations.sort()
                 
-                remote_is_internal = remote_alias.get("is_internal", False)
-                
-                if (local_destinations != remote_destinations or 
-                    db_alias.is_internal != remote_is_internal):
+                if (local_destinations != remote_destinations):
                     diff["to_update"].append({
                         "address": address,
                         "domain": domain_name,
                         "local_part": db_alias.local_part,
                         "destinations": local_destinations,
-                        "is_internal": db_alias.is_internal,
                         "old_destinations": remote_destinations,
-                        "old_is_internal": remote_is_internal,
                         "staged": staged_map.get(address) == SyncActionKind.UPDATE
                     })
         
@@ -174,7 +162,7 @@ async def get_alias_diff(db: AsyncSession) -> Dict[str, Any]:
                             remote_destinations = [remote_destinations]
                         remote_destinations.sort()
                         
-                        # If destinations and is_internal match, we'll call it an update (rename)
+                        # If destinations match, we'll call it an update (rename)
                         # To avoid matching new aliases as renames of unrelated aliases,
                         # we prefer if the new address is explicitly staged as UPDATE.
                         # However, if it's NOT staged yet, we can still match it as a potential rename
@@ -183,15 +171,13 @@ async def get_alias_diff(db: AsyncSession) -> Dict[str, Any]:
                         is_not_staged = create_item["address"] not in staged_map
                         
                         if ((is_explicit_update or is_not_staged) and 
-                            create_item["destinations"] == remote_destinations and 
-                            create_item["is_internal"] == remote_alias.get("is_internal", False)):
+                            create_item["destinations"] == remote_destinations):
                             
                             # Move from to_create to to_update
                             create_item["address"] = create_item["address"] # New address
                             create_item["old_address"] = address
                             create_item["old_local_part"] = remote_alias["local_part"]
                             create_item["old_destinations"] = remote_destinations
-                            create_item["old_is_internal"] = remote_alias.get("is_internal", False)
                             # Update staged status - if either new or old is staged for update?
                             # Usually if it's a rename, user would stage the NEW address as CREATE or UPDATE?
                             # The UI probably shows the new one.
@@ -230,8 +216,7 @@ async def push_alias_diff(db: AsyncSession) -> Dict[str, Any]:
             await migadu_client.create_alias(
                 domain=item["domain"],
                 local_part=item["local_part"],
-                destinations=item["destinations"],
-                is_internal=item["is_internal"]
+                destinations=item["destinations"]
             )
             pushed["to_create"].append(item)
             staged = await db.get(StagedChange, item["address"])
@@ -246,15 +231,13 @@ async def push_alias_diff(db: AsyncSession) -> Dict[str, Any]:
                     domain=item["domain"],
                     local_part=item["old_local_part"],
                     new_local_part=item["local_part"],
-                    destinations=item["destinations"],
-                    is_internal=item["is_internal"]
+                    destinations=item["destinations"]
                 )
             else:
                 await migadu_client.update_alias(
                     domain=item["domain"],
                     local_part=item["local_part"],
-                    destinations=item["destinations"],
-                    is_internal=item["is_internal"]
+                    destinations=item["destinations"]
                 )
             pushed["to_update"].append(item)
             staged = await db.get(StagedChange, item["address"])
@@ -377,14 +360,12 @@ async def discard_alias_change(db: AsyncSession, domain: str, local_part: str, a
             
             if db_alias:
                 db_alias.local_part = remote_alias["local_part"]
-                db_alias.is_internal = remote_alias.get("is_internal", False)
                 db_alias.destinations = dest_str
             else:
                 db_alias = Alias(
                     address=address,
                     local_part=remote_alias["local_part"],
                     domain=domain_name,
-                    is_internal=remote_alias.get("is_internal", False),
                     destinations=dest_str
                 )
                 db.add(db_alias)

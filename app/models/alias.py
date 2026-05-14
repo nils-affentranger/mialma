@@ -18,7 +18,6 @@ class Alias(Base):
     address: Mapped[str] = mapped_column(primary_key=True)
     local_part: Mapped[str]
     domain: Mapped[str] = mapped_column(ForeignKey("domains.name"))
-    is_internal: Mapped[bool] = mapped_column(default=False)
     destinations: Mapped[str]  # Stored as CSV string
 
     domain_rel: Mapped["Domain"] = relationship(back_populates="aliases")
